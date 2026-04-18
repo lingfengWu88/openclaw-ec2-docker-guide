@@ -31,35 +31,59 @@
 
 ## EC2 Instance Setup
 
-### Step 1: Launch Instance
+### Step 1: Launch Instance with SSM Support
 1. Log into AWS Console
 2. Navigate to EC2 → Instances → Launch Instance
 3. Choose AMI:
-   - **Ubuntu 22.04 LTS** (recommended for Docker)
-   - **Amazon Linux 2023** (native AWS optimized)
+   - **Amazon Linux 2023** (recommended, has SSM agent pre-installed)
+   - **Ubuntu 22.04 LTS** (install SSM agent separately)
 4. Select instance type: **t3.medium** (good balance of cost/performance)
 5. Configure storage: **20GB** minimum
-6. Configure security group:
-   - SSH (port 22) - Your IP only
-   - Custom TCP (port 8080) - Your IP only (or all traffic for testing)
-7. Launch and download key pair (.pem file)
+6. **IMPORTANT:** Attach IAM role with `AmazonSSMManagedInstanceCore` policy
+7. Configure security group:
+   - Remove SSH access (not needed with SSM)
+   - Custom TCP (port 8080) - Your IP only
+8. Launch instance (no key pair needed)
 
-### Step 2: Connect to Instance
+### Step 2: Connect via AWS Systems Manager (SSM)
+1. Go to AWS Console → Systems Manager → Session Manager
+2. Click "Start session"
+3. Select your EC2 instance
+4. You'll connect directly in browser terminal as `ssm-user`
+
+### Step 3: Create Dedicated OpenClaw User
 ```bash
-# Set correct permissions for key file
-chmod 400 your-key.pem
+# Create openclaw user
+sudo useradd -m -s /bin/bash openclaw
 
-# Connect to EC2 instance
-ssh -i your-key.pem ubuntu@your-ec2-public-ip
+# Set password (optional)
+sudo passwd openclaw
+
+# Add to docker and sudo groups
+sudo usermod -aG docker openclaw
+sudo usermod -aG wheel openclaw  # Amazon Linux
+# OR for Ubuntu:
+# sudo usermod -aG sudo openclaw
+
+# Switch to openclaw user
+sudo su - openclaw
+
+# Verify user
+whoami  # Should show: openclaw
+id  # Should show docker and wheel/sudo groups
 ```
 
-### Step 3: Initial Setup
+### Step 4: Initial Setup as OpenClaw User
 ```bash
-# Update system packages
-sudo apt-get update && sudo apt-get upgrade -y
+# Update system packages (Amazon Linux 2023)
+sudo yum update -y
 
 # Install basic tools
-sudo apt-get install -y curl wget git htop
+sudo yum install -y curl wget git htop
+
+# For Ubuntu:
+# sudo apt-get update && sudo apt-get upgrade -y
+# sudo apt-get install -y curl wget git htop
 ```
 
 ## Docker Installation
@@ -107,8 +131,8 @@ sudo systemctl status docker
 
 ### Pull OpenClaw Image
 ```bash
-# Pull latest OpenClaw Docker image
-docker pull openclaw/openclaw:latest
+# Pull correct OpenClaw Docker image
+docker pull alpine/openclaw:latest
 
 # Verify image download
 docker images | grep openclaw
@@ -138,14 +162,21 @@ chmod -R 755 ~/openclaw
 
 ### Run OpenClaw Container
 
-#### Basic Command
+#### Basic Command with Permission Fix
 ```bash
+# Create directories with correct permissions
+mkdir -p ~/openclaw_data
+sudo chown -R 1000:1000 ~/openclaw_data
+sudo chmod -R 755 ~/openclaw_data
+
+# Run container with user ID mapping
 docker run -d \
   --name openclaw \
   -p 8080:8080 \
-  -v openclaw_workspace:/home/node/.openclaw/workspace \
-  -v openclaw_config:/home/node/.openclaw/config \
-  openclaw/openclaw:latest
+  --user 1000:1000 \
+  -v ~/openclaw_data/workspace:/home/node/.openclaw/workspace \
+  -v ~/openclaw_data/config:/home/node/.openclaw/config \
+  alpine/openclaw:latest
 ```
 
 #### With Resource Limits
@@ -160,28 +191,36 @@ docker run -d \
   openclaw/openclaw:latest
 ```
 
-#### Using Docker Compose
+#### Using Docker Compose with Permission Fix
 Create `docker-compose.yml`:
 ```yaml
 version: '3.8'
 services:
   openclaw:
-    image: openclaw/openclaw:latest
+    image: alpine/openclaw:latest
     container_name: openclaw
+    user: "1000:1000"  # Match node user in container
     ports:
       - "8080:8080"
     volumes:
-      - openclaw_workspace:/home/node/.openclaw/workspace
-      - openclaw_config:/home/node/.openclaw/config
+      - ./data/workspace:/home/node/.openclaw/workspace
+      - ./data/config:/home/node/.openclaw/config
     environment:
       - NODE_ENV=production
     restart: unless-stopped
     mem_limit: 2g
     cpus: 1.0
 
-volumes:
-  openclaw_workspace:
-  openclaw_config:
+# No named volumes needed - using bind mounts with correct permissions
+```
+
+Then create data directories with correct permissions:
+```bash
+mkdir -p ./data/workspace ./data/config
+sudo chown -R 1000:1000 ./data
+sudo chmod -R 755 ./data
+
+docker-compose up -d
 ```
 
 Then run:

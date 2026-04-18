@@ -2,14 +2,15 @@ version: '3.8'
 
 services:
   openclaw:
-    image: openclaw/openclaw:latest
+    image: alpine/openclaw:latest
+    user: "1000:1000"  # Match node user ID in container
     container_name: openclaw
     restart: unless-stopped
     ports:
       - "8080:8080"
     volumes:
-      - openclaw_workspace:/home/node/.openclaw/workspace
-      - openclaw_config:/home/node/.openclaw/config
+      - ./data/workspace:/home/node/.openclaw/workspace
+      - ./data/config:/home/node/.openclaw/config
     environment:
       - NODE_ENV=production
       # Optional: Set your timezone
@@ -41,11 +42,8 @@ services:
     tmpfs:
       - /tmp
 
-volumes:
-  openclaw_workspace:
-    name: openclaw_workspace
-  openclaw_config:
-    name: openclaw_config
+# Data directories will be created locally
+# Run: mkdir -p ./data/workspace ./data/config && chown -R 1000:1000 ./data
 
 # Optional: Network configuration
 networks:

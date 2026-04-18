@@ -146,6 +146,24 @@ docker update --cpus="1.0" openclaw
 
 ### 5. Data Persistence Issues
 
+#### Issue: Permission denied error when starting OpenClaw
+```bash
+# Error example:
+# Gateway failed to start: Error: EACCES: permission denied, open '/home/node/.openclaw/openclaw.json.xxx.tmp'
+
+# Solution 1: Run container as user 1000 (node user in container)
+docker run --user 1000:1000 ...
+
+# Solution 2: Set correct permissions on host directories
+mkdir -p ~/openclaw_data
+sudo chown -R 1000:1000 ~/openclaw_data
+sudo chmod -R 755 ~/openclaw_data
+
+# Solution 3: Use Docker Compose with user directive
+# In docker-compose.yml:
+#   user: "1000:1000"
+```
+
 #### Issue: Data lost after container restart
 ```bash
 # Check if using volumes
@@ -155,19 +173,19 @@ docker inspect openclaw | grep -A5 Mounts
 docker run --rm -v openclaw_workspace:/data alpine ls -la /data
 
 # Solutions:
-# 1. Use named volumes (not bind mounts)
+# 1. Use bind mounts with correct permissions
 # 2. Check volume permissions
 # 3. Verify backup strategy
 ```
 
 #### Issue: Permission errors in volumes
 ```bash
-# Fix volume permissions
-docker run --rm -v openclaw_workspace:/data alpine chown -R 1000:1000 /data
+# Fix volume permissions for bind mounts
+sudo chown -R 1000:1000 /path/to/your/data
+sudo chmod -R 755 /path/to/your/data
 
-# Or recreate volume with correct owner
-docker volume rm openclaw_workspace
-docker volume create openclaw_workspace
+# For Docker volumes, change ownership inside container
+docker run --rm -v openclaw_workspace:/data alpine chown -R 1000:1000 /data
 ```
 
 ### 6. Backup & Recovery Issues

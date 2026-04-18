@@ -4,10 +4,12 @@ Complete step-by-step guide to deploy OpenClaw on AWS EC2 using Docker.
 
 ## Quick Start
 
-1. Launch EC2 instance (Ubuntu 22.04 or Amazon Linux 2023)
-2. Install Docker
-3. Run OpenClaw container with data persistence
-4. Configure security and backups
+1. Launch EC2 instance with SSM support (Amazon Linux 2023 recommended)
+2. Connect via AWS Systems Manager Session Manager
+3. Create dedicated 'openclaw' user
+4. Install Docker
+5. Run OpenClaw container with correct permissions
+6. Configure security and backups
 
 ## Files
 
