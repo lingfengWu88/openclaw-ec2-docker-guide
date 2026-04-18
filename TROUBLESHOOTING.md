@@ -151,10 +151,34 @@ docker update --cpus="1.0" openclaw
 # Error example:
 # Gateway failed to start: Error: EACCES: permission denied, open '/home/node/.openclaw/openclaw.json.xxx.tmp'
 
-# Solution 1: Run container as user 1000 (node user in container)
-docker run --user 1000:1000 ...
+# Root cause: Docker volumes default to root ownership (0:0) but container runs as user 1000
 
-# Solution 2: Set correct permissions on host directories
+# Solution 1: Fix existing Docker volumes
+# Stop container if running
+docker stop openclaw
+docker rm openclaw
+
+# Fix volume permissions
+docker run --rm \
+  -v openclaw_workspace:/data \
+  alpine \
+  chown -R 1000:1000 /data
+
+docker run --rm \
+  -v openclaw_config:/data \
+  alpine \
+  chown -R 1000:1000 /data
+
+# Restart container
+docker run -d \
+  --name openclaw \
+  -p 8080:8080 \
+  -v openclaw_workspace:/home/node/.openclaw/workspace \
+  -v openclaw_config:/home/node/.openclaw/config \
+  --user 1000:1000 \
+  alpine/openclaw:latest
+
+# Solution 2: Use bind mounts with correct permissions
 mkdir -p ~/openclaw_data
 sudo chown -R 1000:1000 ~/openclaw_data
 sudo chmod -R 755 ~/openclaw_data

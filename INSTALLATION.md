@@ -146,6 +146,17 @@ docker images | grep openclaw
 docker volume create openclaw_workspace
 docker volume create openclaw_config
 
+# Set correct permissions for OpenClaw (user 1000 in container)
+docker run --rm \
+  -v openclaw_workspace:/data \
+  alpine \
+  sh -c "chown 1000:1000 /data && chmod 755 /data"
+
+docker run --rm \
+  -v openclaw_config:/data \
+  alpine \
+  sh -c "chown 1000:1000 /data && chmod 755 /data"
+
 # List volumes
 docker volume ls
 ```
@@ -162,14 +173,26 @@ chmod -R 755 ~/openclaw
 
 ### Run OpenClaw Container
 
-#### Basic Command with Permission Fix
+#### Basic Command with Docker Volumes
+```bash
+# Run container with Docker volumes and user ID mapping
+docker run -d \
+  --name openclaw \
+  -p 8080:8080 \
+  --user 1000:1000 \
+  -v openclaw_workspace:/home/node/.openclaw/workspace \
+  -v openclaw_config:/home/node/.openclaw/config \
+  alpine/openclaw:latest
+```
+
+### Alternative: Bind Mounts with Host Directories
 ```bash
 # Create directories with correct permissions
-mkdir -p ~/openclaw_data
+mkdir -p ~/openclaw_data/workspace ~/openclaw_data/config
 sudo chown -R 1000:1000 ~/openclaw_data
 sudo chmod -R 755 ~/openclaw_data
 
-# Run container with user ID mapping
+# Run container with bind mounts
 docker run -d \
   --name openclaw \
   -p 8080:8080 \
