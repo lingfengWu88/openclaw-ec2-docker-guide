@@ -71,6 +71,12 @@ docker port openclaw
 
 ### 3. Network Issues
 
+#### Issue: EC2 SSM Session Manager doesn't work.
+```bash
+# Check if IAM role has SSM permission
+# reboot the instance after IAM role is correctly set.
+
+
 #### Issue: EC2 instance not accessible
 ```bash
 # Check instance state
