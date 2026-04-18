@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  openclaw:
+    image: openclaw/openclaw:latest
+    container_name: openclaw
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - openclaw_workspace:/home/node/.openclaw/workspace
+      - openclaw_config:/home/node/.openclaw/config
+    environment:
+      - NODE_ENV=production
+      # Optional: Set your timezone
+      - TZ=Europe/Amsterdam
+      # Optional: Authentication token
+      # - OPENCLAW_AUTH_TOKEN=your_token_here
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+volumes:
+  openclaw_workspace:
+    name: openclaw_workspace
+  openclaw_config:
+    name: openclaw_config
+
+# Optional: Network configuration
+networks:
+  default:
+    name: openclaw_network
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
