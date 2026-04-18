@@ -9,8 +9,8 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./data/workspace:/home/node/.openclaw/workspace
-      - ./data/config:/home/node/.openclaw/config
+      - ./config:/home/node/.openclaw
+      - ./workspace:/home/node/.openclaw/workspace
     environment:
       - NODE_ENV=production
       # Optional: Set your timezone
@@ -42,8 +42,10 @@ services:
     tmpfs:
       - /tmp
 
-# Data directories will be created locally
-# Run: mkdir -p ./data/workspace ./data/config && chown -R 1000:1000 ./data
+# Create directories and set permissions before running:
+# mkdir -p ./config ./workspace
+# sudo chown -R 1000:1000 ./config ./workspace
+# sudo chmod -R 755 ./config ./workspace
 
 # Optional: Network configuration
 networks:

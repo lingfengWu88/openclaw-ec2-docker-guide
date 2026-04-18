@@ -21,11 +21,13 @@ Complete step-by-step guide to deploy OpenClaw on AWS EC2 using Docker.
 ## Features
 
 - ✅ Step-by-step instructions
-- ✅ Data persistence setup
+- ✅ Data persistence with bind mounts (recommended)
 - ✅ Security best practices
 - ✅ Backup strategies
 - ✅ Troubleshooting guide
 - ✅ Cost optimization tips
+- ✅ SSM Session Manager integration
+- ✅ Permission fixes for EACCES errors
 
 ## Prerequisites
 

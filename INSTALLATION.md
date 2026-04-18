@@ -140,65 +140,70 @@ docker images | grep openclaw
 
 ### Data Persistence Setup
 
-#### Option A: Docker Volumes (Recommended)
+### Recommended: Bind Mounts (Host Directories)
+Bind mounts are simpler and work reliably with OpenClaw's permission requirements.
+
+```bash
+# Create directories on EC2 host
+mkdir -p ~/openclaw/config ~/openclaw/workspace
+
+# Set correct permissions for OpenClaw (user 1000 = node user in container)
+sudo chown -R 1000:1000 ~/openclaw
+sudo chmod -R 755 ~/openclaw
+
+# Verify permissions
+ls -la ~/openclaw/
+# Should show owner as user 1000 or the user you created
+```
+
+### Alternative: Docker Volumes
+Docker volumes require extra permission setup and are more complex.
+
 ```bash
 # Create volumes for data persistence
 docker volume create openclaw_workspace
 docker volume create openclaw_config
 
-# Set correct permissions for OpenClaw (user 1000 in container)
+# Initialize volumes with correct permissions
 docker run --rm \
-  -v openclaw_workspace:/data \
+  -v openclaw_config:/home/node/.openclaw \
+  -v openclaw_workspace:/home/node/.openclaw/workspace \
   alpine \
-  sh -c "chown 1000:1000 /data && chmod 755 /data"
-
-docker run --rm \
-  -v openclaw_config:/data \
-  alpine \
-  sh -c "chown 1000:1000 /data && chmod 755 /data"
+  sh -c "mkdir -p /home/node/.openclaw && chown -R 1000:1000 /home/node/.openclaw"
 
 # List volumes
 docker volume ls
 ```
 
-#### Option B: Bind Mounts (Host Directories)
-```bash
-# Create directories on EC2 host
-mkdir -p ~/openclaw/workspace
-mkdir -p ~/openclaw/config
-
-# Set appropriate permissions
-chmod -R 755 ~/openclaw
-```
-
 ### Run OpenClaw Container
 
-#### Basic Command with Docker Volumes
-```bash
-# Run container with Docker volumes and user ID mapping
-docker run -d \
-  --name openclaw \
-  -p 8080:8080 \
-  --user 1000:1000 \
-  -v openclaw_workspace:/home/node/.openclaw/workspace \
-  -v openclaw_config:/home/node/.openclaw/config \
-  alpine/openclaw:latest
-```
-
-### Alternative: Bind Mounts with Host Directories
+#### Basic Command with Bind Mounts (Recommended)
 ```bash
 # Create directories with correct permissions
-mkdir -p ~/openclaw_data/workspace ~/openclaw_data/config
-sudo chown -R 1000:1000 ~/openclaw_data
-sudo chmod -R 755 ~/openclaw_data
+mkdir -p ~/openclaw/config ~/openclaw/workspace
+sudo chown -R 1000:1000 ~/openclaw
+sudo chmod -R 755 ~/openclaw
 
 # Run container with bind mounts
 docker run -d \
   --name openclaw \
   -p 8080:8080 \
-  --user 1000:1000 \
-  -v ~/openclaw_data/workspace:/home/node/.openclaw/workspace \
-  -v ~/openclaw_data/config:/home/node/.openclaw/config \
+  -v ~/openclaw/config:/home/node/.openclaw \
+  -v ~/openclaw/workspace:/home/node/.openclaw/workspace \
+  alpine/openclaw:latest
+```
+
+Note: No need for `--user 1000:1000` flag when permissions are set correctly on host directories.
+
+### Alternative: Docker Volumes
+```bash
+# Run container with Docker volumes
+# (Requires volume initialization with correct permissions first)
+docker run -d \
+  --name openclaw \
+  -p 8080:8080 \
+  -v openclaw_config:/home/node/.openclaw \
+  -v openclaw_workspace:/home/node/.openclaw/workspace \
   alpine/openclaw:latest
 ```
 

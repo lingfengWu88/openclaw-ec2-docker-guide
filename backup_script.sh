@@ -6,6 +6,7 @@ set -e  # Exit on error
 
 # Configuration
 BACKUP_DIR="/home/ubuntu/openclaw-backups"
+OPENCLAW_DATA_DIR="/home/ubuntu/openclaw"  # Default bind mount location
 S3_BUCKET="your-openclaw-backups"  # Change to your S3 bucket name
 RETENTION_DAYS=30
 DATE=$(date +%Y%m%d_%H%M%S)
@@ -53,38 +54,66 @@ check_prerequisites() {
     log "${GREEN}Prerequisites check passed${NC}"
 }
 
-# Backup Docker volumes
-backup_volumes() {
-    log "${YELLOW}Starting volume backup...${NC}"
+# Backup OpenClaw data directories
+backup_directories() {
+    log "${YELLOW}Starting directory backup...${NC}"
     
-    # Backup workspace volume
-    log "Backing up openclaw_workspace volume..."
-    docker run --rm \
-        -v openclaw_workspace:/source \
-        -v "$BACKUP_DIR:/backup" \
-        alpine \
-        tar czf "/backup/openclaw_workspace_${DATE}.tar.gz" -C /source . 2>> "$LOG_FILE"
-    
-    if [ $? -eq 0 ]; then
-        WORKSPACE_SIZE=$(du -h "$BACKUP_DIR/openclaw_workspace_${DATE}.tar.gz" | cut -f1)
-        log "${GREEN}Workspace backup complete: ${WORKSPACE_SIZE}${NC}"
+    # Check if using bind mounts (common setup)
+    if [ -d "$OPENCLAW_DATA_DIR" ]; then
+        log "Backing up OpenClaw data from: $OPENCLAW_DATA_DIR"
+        
+        # Backup workspace
+        if [ -d "$OPENCLAW_DATA_DIR/workspace" ]; then
+            log "Backing up workspace directory..."
+            tar czf "$BACKUP_DIR/openclaw_workspace_${DATE}.tar.gz" -C "$OPENCLAW_DATA_DIR" workspace 2>> "$LOG_FILE"
+            WORKSPACE_SIZE=$(du -h "$BACKUP_DIR/openclaw_workspace_${DATE}.tar.gz" | cut -f1)
+            log "${GREEN}Workspace backup complete: ${WORKSPACE_SIZE}${NC}"
+        else
+            log "${YELLOW}Workspace directory not found at $OPENCLAW_DATA_DIR/workspace${NC}"
+        fi
+        
+        # Backup config
+        if [ -d "$OPENCLAW_DATA_DIR/config" ]; then
+            log "Backing up config directory..."
+            tar czf "$BACKUP_DIR/openclaw_config_${DATE}.tar.gz" -C "$OPENCLAW_DATA_DIR" config 2>> "$LOG_FILE"
+            CONFIG_SIZE=$(du -h "$BACKUP_DIR/openclaw_config_${DATE}.tar.gz" | cut -f1)
+            log "${GREEN}Config backup complete: ${CONFIG_SIZE}${NC}"
+        else
+            log "${YELLOW}Config directory not found at $OPENCLAW_DATA_DIR/config${NC}"
+        fi
     else
-        error_exit "Failed to backup workspace volume"
-    fi
-    
-    # Backup config volume
-    log "Backing up openclaw_config volume..."
-    docker run --rm \
-        -v openclaw_config:/source \
-        -v "$BACKUP_DIR:/backup" \
-        alpine \
-        tar czf "/backup/openclaw_config_${DATE}.tar.gz" -C /source . 2>> "$LOG_FILE"
-    
-    if [ $? -eq 0 ]; then
-        CONFIG_SIZE=$(du -h "$BACKUP_DIR/openclaw_config_${DATE}.tar.gz" | cut -f1)
-        log "${GREEN}Config backup complete: ${CONFIG_SIZE}${NC}"
-    else
-        log "${YELLOW}Config volume backup failed (may not exist)${NC}"
+        # Fallback to Docker volumes
+        log "${YELLOW}Bind mount directory not found, trying Docker volumes...${NC}"
+        
+        # Backup workspace volume
+        log "Backing up openclaw_workspace volume..."
+        docker run --rm \
+            -v openclaw_workspace:/source \
+            -v "$BACKUP_DIR:/backup" \
+            alpine \
+            tar czf "/backup/openclaw_workspace_${DATE}.tar.gz" -C /source . 2>> "$LOG_FILE"
+        
+        if [ $? -eq 0 ]; then
+            WORKSPACE_SIZE=$(du -h "$BACKUP_DIR/openclaw_workspace_${DATE}.tar.gz" | cut -f1)
+            log "${GREEN}Workspace backup complete: ${WORKSPACE_SIZE}${NC}"
+        else
+            error_exit "Failed to backup workspace volume"
+        fi
+        
+        # Backup config volume
+        log "Backing up openclaw_config volume..."
+        docker run --rm \
+            -v openclaw_config:/source \
+            -v "$BACKUP_DIR:/backup" \
+            alpine \
+            tar czf "/backup/openclaw_config_${DATE}.tar.gz" -C /source . 2>> "$LOG_FILE"
+        
+        if [ $? -eq 0 ]; then
+            CONFIG_SIZE=$(du -h "$BACKUP_DIR/openclaw_config_${DATE}.tar.gz" | cut -f1)
+            log "${GREEN}Config backup complete: ${CONFIG_SIZE}${NC}"
+        else
+            log "${YELLOW}Config volume backup failed (may not exist)${NC}"
+        fi
     fi
     
     # Create backup manifest
@@ -243,7 +272,7 @@ main() {
     check_prerequisites
     
     # Perform backups
-    backup_volumes
+    backup_directories
     backup_github
     backup_to_s3
     
