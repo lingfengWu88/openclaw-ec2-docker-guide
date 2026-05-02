@@ -405,6 +405,59 @@ docker stats --no-stream openclaw
 
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues and solutions.
 
+## Installing OpenClaw Skills
+
+OpenClaw skills can enhance your assistant's capabilities. Some skills require additional CLI tools to function.
+
+### Installing the Summarize Skill
+
+The [summarize](https://summarize.sh) skill allows the assistant to summarize URLs, local files, and YouTube links.
+
+**Step 1: Install the skill definition**
+```bash
+docker exec -it openclaw npx openclaw skills install summarize
+```
+
+**Step 2: Install the CLI tool**
+```bash
+# Enter container as root to install the npm package globally
+docker exec -it -u root openclaw sh
+
+# Inside the container:
+npm install -g summarize
+
+# Exit the container
+# (Type 'exit' or press Ctrl+D)
+```
+
+**Step 3: Restart the container**
+```bash
+docker restart openclaw
+```
+
+**Step 4: Verify the installation**
+```bash
+# Check if the skill definition exists
+ls /app/skills/summarize/SKILL.md
+
+# Check if the CLI binary is available
+which summarize
+
+# Test with a URL
+docker exec openclaw summarize "https://example.com/article"
+```
+
+> **Note:** The `npm install -g summarize` installs a legacy npm package. It may show deprecation warnings (this is normal). If the binary exists in `/usr/local/bin/summarize`, the skill will work.
+
+### Installing Other Skills
+
+Check available skills:
+```bash
+docker exec -it openclaw npx openclaw skills list
+```
+
+Most skills require the same pattern: install the skill definition, then install the required CLI tool, then restart.
+
 ## Next Steps
 
 1. Configure OpenClaw with your preferred messaging channels
@@ -421,5 +474,5 @@ See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues and solutions.
 
 ---
 
-*Last updated: April 2026*  
+*Last updated: May 2026*  
 *Tested on: AWS EC2 with Ubuntu 22.04 LTS*
