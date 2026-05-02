@@ -449,6 +449,58 @@ docker exec openclaw summarize "https://example.com/article"
 
 > **Note:** The `npm install -g summarize` installs a legacy npm package. It may show deprecation warnings (this is normal). If the binary exists in `/usr/local/bin/summarize`, the skill will work.
 
+### Installing the gog (Google Workspace CLI) Skill
+
+The [gog](https://gogcli.sh) skill gives the assistant access to Gmail, Calendar, Drive, Contacts, Sheets, and Docs.
+
+**Step 1: Install the skill definition**
+```bash
+docker exec -it openclaw npx openclaw skills install gog
+```
+
+**Step 2: Install the gog CLI binary**
+The binary is `gogcli` from [steipete/gogcli](https://github.com/steipete/gogcli) on GitHub. Install it as root:
+```bash
+docker exec -it -u root openclaw sh -c "\\
+  curl -L -o /tmp/gogcli.tar.gz https://github.com/steipete/gogcli/releases/download/v0.14.0/gogcli_0.14.0_linux_amd64.tar.gz && \\
+  tar -xzf /tmp/gogcli.tar.gz -C /usr/local/bin && \\
+  chmod +x /usr/local/bin/gogcli && \\
+  ln -sf /usr/local/bin/gogcli /usr/local/bin/gog && \\
+  rm /tmp/gogcli.tar.gz"
+```
+
+**Step 3: Restart the container**
+```bash
+docker restart openclaw
+```
+
+**Step 4: Verify the installation**
+```bash
+# Check binary version
+docker exec openclaw gog --help
+
+# Expected output: Usage: gog <command> [flags], Build: v0.14.0
+```
+
+**Step 5: Configure OAuth (one-time setup)**
+gog requires Google OAuth credentials to function. You need:
+1. A Google Cloud project with OAuth consent screen configured
+2. An OAuth 2.0 Client ID (desktop application type)
+3. The downloaded `client_secret.json` file
+
+```bash
+# Copy credentials to container
+docker cp client_secret.json openclaw:/home/node/.config/gogcli/
+
+# Authenticate (will provide an OAuth URL to visit in a browser)
+docker exec -it openclaw gog auth credentials /home/node/.config/gogcli/client_secret.json
+
+# Add your Google account
+docker exec -it openclaw gog auth add your.email@gmail.com --services gmail,calendar,drive
+```
+
+> **Note:** For the first OAuth setup, you may need to temporarily expose the container's web interface or use a browser on the same network.
+
 ### Installing Other Skills
 
 Check available skills:
